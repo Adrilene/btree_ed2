@@ -41,15 +41,23 @@ class Node:
 
     def getParent(self, root):
         
-        if root == self:
-            return None
+        aux = None
+        for i in range(len(root.children)):
+            aux = root.children[i]
+            if aux != None: 
+                break
+        
+        if aux == None:
+            return None 
 
-        else: 
+        else:
             for i in range(len(root.children)):
                 if root.children[i] == self:
                     return root
+            
             for i in range(len(root.children)):
-                return self.getParent(root.children[i])
+                if root.children[i] != None: 
+                    return self.getParent(root.children[i])     
 
     def split(self, x):
         global root 
@@ -60,18 +68,16 @@ class Node:
         for i in range(self.m): 
             newNode.insertKey(self.keys[0])
             self.n -= 1
-            del(self.keys[0])
+            self.keys.pop(0)
 
         if x < self.keys[0]:
             newNode.insertKey(x)
-            k = newNode.keys[newNode.n-1]
-            del(newNode.keys[newNode.n-1])
+            k = newNode.keys.pop(newNode.n-1)
             newNode.n -= 1
 
         else: 
             self.insertKey(x)
-            k = self.keys[0]
-            del(self.keys[0])
+            k = self.keys.pop(0)
             self.n -= 1
 
         if parent == None:
@@ -81,11 +87,13 @@ class Node:
             newParent.children[1] = self
             newParent.leaf = False
             root = newParent
+            return 1
 
         elif parent.n < parent.m * 2:
             parent.insertKey(k)
             parent.children[parent.keys.index(k)] = newNode 
             parent.children[parent.keys.index(k)+1] = self
+            return 1
 
         else: 
             return parent.split(k)
@@ -98,7 +106,7 @@ class Node:
                 if x < self.keys[i]:
                     if x not in self.keys:
                         self.keys.insert(i, x)
-                    return 1
+                    break
 
                 if i == self.n-1 and x > self.keys[i]:
                     if x not in self.keys:
@@ -117,42 +125,35 @@ class Node:
                 return 1
 
             else:
-                self.split(x)
+                return self.split(x)
         
         else:    
             for i in range(self.n):  
-                if x < self.keys[i]:
-                    if self.children[i] != None:
-                        if self.children[i].n < 2*self.children[i].m:
-                            self.children[i].insertKey(x)
-                            root.printPages(0)
-                            return 1
-                        else: 
-                            return self.children[i].insertion(x)
+                
+                if i == 0 and x < self.keys[i]:
+                    if self.children[0] != None:
+                        return self.children[0].insertion(x)
                     else: 
-                        self.children[i] = Node()
-                        self.children[i].insertKey(x)
-                        root.printPages(0)
+                        self.children[0] = Node()
+                        self.children[0].insertKey(x)
+                        return 1    
+
+                if x > self.keys[i]:
+                    if self.children[i+1] != None:
+                        return self.children[i+1].insertion(x)
+                    else: 
+                        self.children[i+1] = Node()
+                        self.children[i+1].insertKey(x)
                         return 1
                 
-                if i == self.n-1 and x > self.keys[i]:
-                    if self.children[self.n] != None:
-                        if self.children[self.n].n < 2*self.children[self.n].m:
-                                self.children[self.n].insertKey(x)
-                                root.printPages(0)
-                                return 1
-                        else: 
-                            return self.children[self.n].insertion(x)
-                    else: 
-                        self.children[self.n] = Node()
-                        self.children[self.n].insertKey(x)
-                        root.printPages(0)
-                        return 1
+
 
 root = Node()
-for i in range(20): 
+
+for i in range(40): 
     random.seed()
-    x = random.randint(0,40)
+    x = random.randint(0,100)
     if not root.search(x):
         print('Inserindo ', x)
         root.insertion(x)
+        root.printPages(0)
