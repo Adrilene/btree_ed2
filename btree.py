@@ -10,94 +10,118 @@ class Node:
         self.m = 2 #mínimo de chaves
         self.leaf = True
         self.children = []
-
+        
         for i in range(self.m*2+1):
             self.children.append(None)
 
-    def printPages(self, l):
-        node = self
-        print('{}: {}'.format(l, self.keys))
-        i = 0
-
-        print('{}:'.format(l), end="")
-        for i in range(self.m*2+1):
-            if node.children[i]:
-                print(node.children[i].keys, end="")
-            else: 
-                print('[]', end="")
+    def printPages(self):
+        
+        for i in range(self.n):
+            if not self.leaf:
+                if self.children[i]:
+                    self.children[i].printPages()
+                else:
+                    print('[    ]')
+        print(self.keys)
+        
         print('\n')
-        
+
+        if not self.leaf: 
+            if not self.children[i]:
+                print('[    ]', end = '')
+            else:
+                self.children[i].printPages()
+            
     def search(self, x):
-        
+
         if x in self.keys:
             return 1
         if not self.leaf:
-            for i in range(len(self.children)):
-                try: 
-                    return self.children[i].search(x)
-                except:
-                    pass
-        return 0
+            for i in range(self.n):
+                if i == 0 and x < self.keys[i]:
+                    try:
+                        return self.children[i].search(x)
+                    except:
+                        pass
+                
+                if i < self.n-1 and x > self.keys[i] and x < self.keys[i+1]:
+                    try:
+                        return self.children[i+1].search(x)
+                    except:
+                        pass
 
-    def getParent(self, root):
-        
-        aux = None
-        for i in range(len(root.children)):
-            aux = root.children[i]
-            if aux != None: 
-                break
-        
-        if aux == None:
-            return None 
+                if i == self.n-1 and x > self.keys[i]:
+                    try:
+                        return self.children[i+1].search(x)
+                    except:
+                        pass
 
+    def getParent(self, parent, x):
+        
+        if parent.leaf:
+            return None
+
+        elif self in parent.children:
+            return parent
+        
         else:
-            for i in range(len(root.children)):
-                if root.children[i] == self:
-                    return root
-            
-            for i in range(len(root.children)):
-                if root.children[i] != None: 
-                    return self.getParent(root.children[i])     
+            for i in range(len(parent.children)):
+                if parent.children[i] and not parent.children[i].leaf:
+                    return parent.children[i].getParent(parent.children[i], x)
+
 
     def split(self, x):
         global root 
         newNode = Node()
-        parent = self.getParent(root)
+        parent = self.getParent(root, self)
         k = 0
 
-        for i in range(self.m): 
-            newNode.insertKey(self.keys[0])
-            self.n -= 1
-            self.keys.pop(0)
+        self.insertKey(x)
+        k = self.keys.pop(int(self.n/2))
+        self.n -= 1
 
-        if x < self.keys[0]:
-            newNode.insertKey(x)
-            k = newNode.keys.pop(newNode.n-1)
-            newNode.n -= 1
+        for i in range(self.m):
+            if not self.leaf:
+                if self.children[0]:
+                    newNode.leaf = False
+                    newNode.children[0] = self.children.pop(0)
 
-        else: 
-            self.insertKey(x)
-            k = self.keys.pop(0)
+            newNode.insertKey(self.keys.pop(0))
             self.n -= 1
 
         if parent == None:
             newParent = Node()
-            newParent.insertKey(k)
-            newParent.children[0] = newNode
-            newParent.children[1] = self
+            newParent.insertKeyParent(k, newNode, self)
             newParent.leaf = False
             root = newParent
             return 1
 
         elif parent.n < parent.m * 2:
-            parent.insertKey(k)
-            parent.children[parent.keys.index(k)] = newNode 
-            parent.children[parent.keys.index(k)+1] = self
+            parent.insertKeyParent(k, newNode, self)
             return 1
 
         else: 
             return parent.split(k)
         
+    
+    def insertKeyParent(self, x, childLeft, childRight):
+
+        self.insertKey(x)
+        l = self.keys.index(x)
+        listA = []
+        
+        if self.children[l]:
+            for i in range(l, len(self.children)):
+                listA.append(self.children[i])
+
+        self.children[l] = childLeft            
+        self.children[l+1] = childRight
+
+        if len(listA) > 0:
+            while len(listA) > 0 and l+1 < len(self.children):
+                self.children[l+1] = listA.pop(0)
+                l += 1
+    
     def insertKey(self, x):
         if self.n == 0:
             self.keys.append(x)
@@ -114,6 +138,7 @@ class Node:
                     break
         
         self.n = len(self.keys)
+
         return 1
 
     def insertion(self, x):
@@ -128,32 +153,48 @@ class Node:
                 return self.split(x)
         
         else:    
-            for i in range(self.n):  
+            for i in range(self.n):
                 
                 if i == 0 and x < self.keys[i]:
-                    if self.children[0] != None:
-                        return self.children[0].insertion(x)
+                    if self.children[i]: 
+                        return self.children[i].insertion(x)
                     else: 
-                        self.children[0] = Node()
-                        self.children[0].insertKey(x)
-                        return 1    
-
-                if x > self.keys[i]:
-                    if self.children[i+1] != None:
+                        self.children[i] = Node()
+                        self.children.insertKey(x)
+                        return 1
+                
+                if i < self.n-1 and x > self.keys[i] and x < self.keys[i+1]:
+                    if self.children[i+1]:
                         return self.children[i+1].insertion(x)
                     else: 
                         self.children[i+1] = Node()
                         self.children[i+1].insertKey(x)
                         return 1
+
+                if i == self.n-1 and x > self.keys[i]:
+                    if self.children[i+1]:
+                        return self.children[i+1].insertion(x)
+                    else: 
+                        self.children[i+1] = Node()
+                        self.children[i+1].insertKey(x)
+                        return 1
+
+                    
+        return 0
                 
-
-
 root = Node()
 
-for i in range(40): 
+c = 0
+
+while True: 
     random.seed()
-    x = random.randint(0,100)
+    x = random.randint(0,50)
     if not root.search(x):
         print('Inserindo ', x)
-        root.insertion(x)
-        root.printPages(0)
+        if root.insertion(x):
+            c += 1
+        root.printPages()
+    if c == 24:
+        break
+
+print(c, ' elementos. ')
