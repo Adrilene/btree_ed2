@@ -3,7 +3,7 @@ import random
 root = None
 parent = None
 
-class Node:
+class Page:
     def __init__(self):
         self.keys = []
         self.n = 0 #número de espaços ocupados
@@ -84,7 +84,7 @@ class Node:
 
     def split(self, x):
         global root 
-        newNode = Node()
+        newPage = Page()
         parent = self.getParent(root,x)
         k = 0
 
@@ -92,29 +92,29 @@ class Node:
         k = self.keys.pop(self.m)
         self.n -= 1
 
-        newNode.keys = self.keys[0:self.m]
+        newPage.keys = self.keys[0:self.m]
         self.keys = self.keys[self.m:]
-        self.n = newNode.m
-        newNode.n = newNode.m
+        self.n = newPage.m
+        newPage.n = newPage.m
         
         if not self.leaf:
-            newNode.children = self.children[0:self.m+1]
+            newPage.children = self.children[0:self.m+1]
             self.children = self.children[self.m+1:]
 
             for i in range(self.m, self.m*2):
                 self.children.append(None)
-                newNode.children.append(None)
+                newPage.children.append(None)
             
-            newNode.leaf = False
+            newPage.leaf = False
 
         if parent == None:
-            newParent = Node()
-            newParent.insertKeyParent(k, newNode, self)
+            newParent = Page()
+            newParent.insertKeyParent(k, newPage, self)
             newParent.leaf = False
             root = newParent
             return 1
 
-        root.findPlace(k, parent, newNode, self)
+        root.findPlace(k, parent, newPage, self)
         return 1
                    
     def findPlace(self, k, parent, childLeft, childRight):       
@@ -193,26 +193,26 @@ class Node:
                     if self.children[i]: 
                         return self.children[i].insertion(x)
                     else:
-                        self.children[i] = Node()
+                        self.children[i] = Page()
                         self.children[i].insertKey(x)   
                         return 1
                 if i < self.n-1 and x > self.keys[i] and x < self.keys[i+1]:
                     if self.children[i+1]: 
                         return self.children[i+1].insertion(x)
                     else:
-                        self.children[i+1] = Node()
+                        self.children[i+1] = Page()
                         self.children[i+1].insertKey(x)
                         return 1 
                 if i == self.n-1 and x > self.keys[i]:
                     if self.children[i+1]: 
                         return self.children[i+1].insertion(x)
                     else:
-                        self.children[i+1] = Node()
+                        self.children[i+1] = Page()
                         self.children[i+1].insertKey(x)
                         return 1                                             
         return 0
                 
-root = Node()
+root = Page()
 c = 0
 while c<50: 
     random.seed()
