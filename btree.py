@@ -1,7 +1,6 @@
 import random
 
 root = None
-parent = None
 
 class Page:
     def __init__(self):
@@ -9,7 +8,8 @@ class Page:
         self.n = 0 #número de espaços ocupados
         self.m = 2 #mínimo de chaves
         self.leaf = True
-        self.children = self.initChild()        
+        self.children = self.initChild()
+        self.parent = None     
     
     def initChild(self):
         children = []
@@ -19,13 +19,13 @@ class Page:
 
     def printPages(self):
         stack = []
-        stack.append(self)
+        stack.append(self) #Adiciona a página atual em stack
 
         while len(stack) > 0:
             count = len(stack)
-            while count > 0:
+            while count > 0: #Percorre as páginas contidas em stack
                 if stack[0]: 
-                    temp = stack.pop(0)
+                    temp = stack.pop(0) #temp recebe a primeira página de stack, e a remove de stack
                 else: 
                     temp = None
                 try: 
@@ -34,10 +34,9 @@ class Page:
                    print('[    ]', end = '')
 
                 if temp: 
-                    for i in range(len(temp.children)):
+                    for i in range(len(temp.children)): #Percorre as páginas filhas de temp, e as adiciona em stack.
                         if temp.children[i]:
-                            stack.append(temp.children[i])
-                    
+                            stack.append(temp.children[i])    
                 count -= 1
             print(' ')
 
@@ -45,108 +44,81 @@ class Page:
             
     def search(self, x):
 
-        if x in self.keys:
-            return 1
+        if x in self.keys: #Retorna verdadeiro se x está contido na página atual.
+            return self
         
-        elif not self.leaf:
-            for i in range(self.n):
-                if i == 0 and x < self.keys[0]:
+        elif not self.leaf: #Caso não esteja e a página não for folha(página interna da árvore).
+            for i in range(self.n): #Quantidade de itens em self.keys.
+                if i == 0 and x < self.keys[0]: #Caso x seja menor que a primeira chave em self.keys.
                     try: 
                         return self.children[0].search(x)
                     except:
                         return 0 
-                if i < self.n-1 and x > self.keys[i] and x < self.keys[i+1]:
+                if i < self.n-1 and x > self.keys[i] and x < self.keys[i+1]: #Caso x esteja entre qualquer valor em self.keys.
                     try: 
                         return self.children[i+1].search(x)
                     except:
                         return 0
-                if i == self.n-1 and x > self.keys[i]:
+                if i == self.n-1 and x > self.keys[i]: #Caso x seja maior que o último item em self.keys.
                     try:
                         return self.children[i+1].search(x)
                     except:
                         return 0 
         return 0 
 
-    def getParent(self, parent, x):
-        if parent.leaf: 
-            return None
-        
-        if self in parent.children:
-            return parent
-        
-        for i in range(parent.n):
-            if i == 0 and x < parent.keys[i]:
-                return self.getParent(parent.children[i], x)
-            if i < parent.n-1 and x > parent.keys[i] and x < parent.keys[i+1]:
-                return self.getParent(parent.children[i+1], x)
-            if i == parent.n-1 and x > parent.keys[i]:
-                return self.getParent(parent.children[i+1], x)
-
     def split(self, x):
         global root 
         newPage = Page()
-        parent = self.getParent(root,x)
         k = 0
 
         self.insertKey(x)
         k = self.keys.pop(self.m)
         self.n -= 1
 
-        newPage.keys = self.keys[0:self.m]
+        newPage.keys = self.keys[0:self.m] #Recebe os itens "esquerdos". Logo self fica com os itens "direitos".
+        newPage.parent = self.parent #Pega o mesmo pai de self.
         self.keys = self.keys[self.m:]
-        self.n = newPage.m
+        self.n = self.m
         newPage.n = newPage.m
         
-        if not self.leaf:
+        if not self.leaf: #Caso self não seja folha, reorganizamos os filhos.
             newPage.children = self.children[0:self.m+1]
             self.children = self.children[self.m+1:]
+            for filho in range(self.m+1):
+                self.children[filho].parent = self
+                newPage.children[filho].parent = newPage
 
-            for i in range(self.m, self.m*2):
+            for i in range(self.m, self.m*2): #Faz com que self e newPage tenham 2m+1 filhos.
                 self.children.append(None)
                 newPage.children.append(None)
             
             newPage.leaf = False
 
-        if parent == None:
-            newParent = Page()
-            newParent.insertKeyParent(k, newPage, self)
+        if self.parent == None:
+            newParent = Page() #Novo pai de ambas as páginas(self e newPage)
             newParent.leaf = False
-            root = newParent
+            newParent.insertKeyParent(k, newPage, self)
+            root = newParent #Como não existe nenhuma página acima de self, seu pai será o mais alto, e consequentemente a root.
+            self.parent = root
+            newPage.parent = root
             return 1
 
-        root.findPlace(k, parent, newPage, self)
-        return 1
-                   
-    def findPlace(self, k, parent, childLeft, childRight):       
-
-        if self == parent:
-            if root.n < root.m*2:
-                root.insertKeyParent(k, childLeft, childRight)
-                return 1
-            else:
-                self.insertKey(k)
-                self.children.insert(self.children.index(childRight), childLeft)
-                root.split(k)
-                return 1
-    
-        if parent in self.children: 
-            self.children[self.children.index(parent)].insertKeyParent(k, childLeft, childRight)     
+        if self.parent.n < self.m*2: #Caso o pai de self ainda possua espaços disponíveis
+            self.parent.insertKeyParent(k, newPage, self)
             return 1
         
-        for i in range(self.n):
-            if i == 0 and k < self.keys[i]:
-                return self.children[i].findPlace(k, parent, childLeft, childRight)
-            if i < self.n-1 and k > self.keys[i] and k < self.keys[i+1]:
-                return self.children[i+1].findPlace(k, parent,childLeft, childRight)
-            if i == self.n-1 and k > self.keys[i]:
-                return self.children[i+1].findPlace(k, parent, childLeft, childRight)
+        if self.parent.n >= self.m*2: #Caso o pai de self não possua espaços disponíveis
+            self.parent.children.insert(self.parent.children.index(self), newPage)
+            return self.parent.split(k)
 
+        return 1
+                   
     def insertKeyParent(self, x, childLeft, childRight):
         
         global root 
 
         self.insertKey(x)
-        l = self.keys.index(x)
+        l = self.keys.index(x) #l recebe o índice onde foi inserido x.
         listA = self.children
 
         listA.insert(l, childLeft)
@@ -161,10 +133,10 @@ class Page:
      
     def insertKey(self, x):
        
-        if self.n == 0:
+        if self.n == 0: #Se ainda não houverem chaves na página.
             self.keys.append(x)
         else: 
-            for i in range(self.n):
+            for i in range(self.n): #Percorre as chaves de self a fim de identificar onde inserir x.
                 if i == 0 and x < self.keys[i]:
                     self.keys.insert(i, x)
                     break
@@ -175,17 +147,17 @@ class Page:
                     self.keys.append(x)
                     break
         
-        self.n = len(self.keys)
+        self.n = len(self.keys) #Atualiza o valor de self.n
         return 1
 
     def insertion(self, x): 
         global root 
 
         if self.leaf:
-            if self.n < self.m * 2:
+            if self.n < self.m * 2: #Se ainda houver espeço na página, insere o  item.
                 self.insertKey(x)
                 return 1
-            else:
+            else: #Caso contrário, chama split da página atual.
                 return self.split(x)
         else:    
             for i in range(self.n):
@@ -194,6 +166,7 @@ class Page:
                         return self.children[i].insertion(x)
                     else:
                         self.children[i] = Page()
+                        self.children[i].parent = self
                         self.children[i].insertKey(x)   
                         return 1
                 if i < self.n-1 and x > self.keys[i] and x < self.keys[i+1]:
@@ -201,6 +174,7 @@ class Page:
                         return self.children[i+1].insertion(x)
                     else:
                         self.children[i+1] = Page()
+                        self.children[i+1].parent = self
                         self.children[i+1].insertKey(x)
                         return 1 
                 if i == self.n-1 and x > self.keys[i]:
@@ -208,17 +182,46 @@ class Page:
                         return self.children[i+1].insertion(x)
                     else:
                         self.children[i+1] = Page()
+                        self.children[i+1].parent = self
                         self.children[i+1].insertKey(x)
                         return 1                                             
         return 0
-                
+
 root = Page()
 c = 0
-while c<50: 
-    random.seed()
-    x = random.randint(0,50)
-    if not root.search(x):
-        print('Inserindo ', x)
-        if root.insertion(x):
-            c += 1
-        root.printPages()
+menu = 0
+while menu != 3:
+    menu = int(input("Digite 1 para o método interativo, 2 para o método automático, e 3 para sair."))
+    if menu == 1:
+        resposta = 0
+        while(resposta != 99):
+            resposta = int(input("Digite 1 para adicionar um elemento, 2 para buscar a página do elemento, ou 99 para sair: "))
+            if resposta == 1:
+                chave = int(input("Digite a chave à ser adicionada: "))
+                print('Inserindo ', chave)
+                root.insertion(chave)
+                root.printPages()
+                c += 1
+                print(c, " elementos.")
+            if resposta == 2:
+                chave = int(input("Digite a chave à ser buscada: "))
+                pagina = root.search(chave)
+                print("Chaves da página: ", pagina.keys)
+                count = 0
+                if pagina.parent:
+                    print("Chaves do pai: ", pagina.parent.keys)
+                for filho in pagina.children:
+                    if filho:
+                        print("Chaves do", count, "filho: ", filho.keys)
+                    count += 1
+    if menu == 2:
+        while c<50: 
+            random.seed()
+            x = random.randint(0,50)
+            #Insere apenas itens não repetidos
+            if not root.search(x):
+                print('Inserindo ', x)
+                if root.insertion(x):
+                    c += 1
+                root.printPages()
+                print(c, ' elementos.')    
