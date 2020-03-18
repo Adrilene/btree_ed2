@@ -209,21 +209,38 @@ class Page:
     def borrow(self, my_idx, parent, brother):
         try:
             new_element = parent.keys[my_idx - 1]
+            print(f'new element {new_element}')
         except IndexError:
             return
         parent.keys[my_idx - 1] = brother.keys[-1]
+        # print(f'parent now {parent.keys[my_idx - 1]}')
+        substituito = brother.mv_nearest_element()
+        # print(f' substituito {substituito} newelement {new_element}')
+        if not substituito or substituito == new_element:
+            print('deleting {brother.keys[-1]}')
+            brother.keys.remove(parent.keys[my_idx - 1])
+            brother.n -= 1
+        self.keys.insert(0, new_element)
+        self.n += 1
+        return True
+
+    def borrow_right(self, my_idx, parent, brother):
+        try:
+            new_element = parent.keys[my_idx + 1]
+        except IndexError:
+            return
+        parent.keys[my_idx + 1] = brother.keys[0]
         substituito = brother.mv_nearest_element()
         if not substituito:
-            del brother.keys[-1]
+            del brother.keys[0]
             brother.n -= 1
-        else:
-            brother.keys[-1] = substituito
-        self.keys.insert(0, new_element)
+        self.keys.append(new_element)
+        self.n += 1
+        return True
 
     def join_pages(self, element, element_idx, page1, page2):
-        self.keys[element_idx] = page2.keys[-1]
-        del page2.keys[-1]
-        page1.keys.append(element)
+        del self.keys[element_idx]
+        page2.n -= 1
         page1.keys.extend(page2.keys)
         page1.children.extend(page2.children)
         self.children.remove(page2)
@@ -260,11 +277,11 @@ class Page:
         # se for nessa pag
         if element in self.keys:
             element_idx = self.keys.index(element)
-            if self.n - 1 >= self.m or self.n < self.m:
+            if self.n - 1 >= self.m or self.n < self.m or not self.parent:
                 if self.leaf:
+                    print('deleting item in leaf')
                     del self.keys[element_idx]
                     self.n -= 1
-                    # print(f'leaf self keys: {self.keys}')
                 else:
                     try:
                         left_child = self.children[element_idx]
@@ -275,20 +292,14 @@ class Page:
                     if left_child:
                         nearest = left_child.mv_nearest_element()
                         if nearest:
-                            self.keys[element_idx] = nearest
-                            return
-                    if right_child:
-                        nearest = right_child.mv_nearest_element_right()
-                        if nearest:
+                            print('pulling left nearest element')
                             self.keys[element_idx] = nearest
                             return
 
                     if left_child and right_child:
-                        print('JOIN CARAI')
-                        self.printPages()
+                        print('join childs')
                         self.join_pages(
                             element, element_idx, left_child, right_child)
-                        self.printPages()
 
             else:
                 my_idx = parent.children.index(self)
@@ -299,11 +310,12 @@ class Page:
                     pass
 
                 if left_brother and left_brother.n - 1 >= left_brother.m and left_brother.keys:   # noqa: E501
-                    # print(f'left brother: {left_brother.n - 1 >= left_brother.m}')
+                    print('pedindo emprestado para a page esquerda')
                     ok = self.borrow(my_idx, parent, left_brother)
                     if ok:
+                        parent.printPages()
                         self.removes(parent, element)
-                        return
+                        return True
                 try:
                     right_brother = parent.children[my_idx + 1]
                 except IndexError:
@@ -311,13 +323,13 @@ class Page:
                     pass
 
                 if right_brother and right_brother.n - 1 >= right_brother.m and right_brother.keys:   # noqa: E501
-                    # print(f'left brother: {right_brother.n - 1 >= right_brother.m}')
-                    ok = self.borrow(my_idx, parent, right_brother)
+                    print('pedindo emprestado para a page direita')
+                    ok = self.borrow_right(my_idx, parent, right_brother)
                     if ok:
+                        parent.printPages()
                         self.removes(parent, element)
-                        return
+                        return True
 
-                # print(f'chegou na parte do join com o elemento {element}')
         else:
             for child in self.children:
                 if child:
@@ -374,12 +386,12 @@ while menu != 3:
                     c += 1
                 root.printPages()
                 print(c, ' elementos.')
-
-        for i in x:
+        count = 0
+        for i in a:
+            count += 1
             print(f'removes {i}')
             root.removes(root, i)
-            count += 1
-            # if count == 4:
-            #     break
+            root.printPages()
+
         print('after:')
         root.printPages()
