@@ -238,110 +238,151 @@ class Page:
         self.n += 1
         return True
 
-    def join_pages(self, element, element_idx, page1, page2):
-        del self.keys[element_idx]
-        page2.n -= 1
-        page1.keys.extend(page2.keys)
-        page1.children.extend(page2.children)
-        self.children.remove(page2)
-        del page2
+    # def join_pages(self, element, element_idx, page1, page2):
+    #     del self.keys[element_idx]
+    #     page2.n -= 1
+    #     page1.keys.extend(page2.keys)
+    #     page1.children.extend(page2.children)
+    #     self.children.remove(page2)
+    #     del page2
 
     def mv_nearest_element(self):
-        nearest_element, new_nearest_element = None, None
-        if self.n - 1 >= self.m:
-            nearest_element = self.keys[-1]
-        last_child = self.children[len(self.keys)]
+        new_nearest_element = None
+        nearest_element = self.keys[-1]
+        last_child = self.children[self.n]
         if last_child:
             new_nearest_element = last_child.mv_nearest_element()
         if not new_nearest_element and nearest_element:
-            del self.keys[-1]
-            self.n -= 1
+            self.removesKey(self.keys[-1])
+            self.balance_page()
             return nearest_element
         return new_nearest_element if new_nearest_element else nearest_element
 
-    def mv_nearest_element_right(self):
-        nearest_element, new_nearest_element = None, None
-        if self.n - 1 >= self.m:
-            nearest_element = self.keys[0]
-        last_child = self.children[len(self.keys)]
-        if last_child:
-            new_nearest_element = last_child.mv_nearest_element_right()
-        if not new_nearest_element and nearest_element:
-            del self.keys[0]
-            self.n -= 1
-            return nearest_element
-        return new_nearest_element if new_nearest_element else nearest_element
-
-    def removes(self, parent, element):
+    def balance_page(self):
+        print(f'Balance function keys: {self.keys}, n: {self.n}')
         global root
-        # se for nessa pag
-        if element in self.keys:
-            element_idx = self.keys.index(element)
-            if self.n - 1 >= self.m or self.n < self.m or not self.parent:
-                if self.leaf:
-                    print('deleting item in leaf')
-                    del self.keys[element_idx]
-                    self.n -= 1
+        if self.n < self.m:
+            my_idx = self.parent.children.index(self)
+            if my_idx != 0:
+                try:
+                    left_brother = self.parent.children[my_idx - 1]
+                except IndexError:
+                    pass
+
+                if left_brother and left_brother.n + self.n >= 2 * self.m:
+                    print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys}')
+                    parent_element = self.parent.keys.pop(my_idx - 1)  # noqa: E501
+                    self.parent.n -= 1
+                    self.parent.insertKey(left_brother.keys.pop(-1))  # noqa: E501
+                    self.insertKey(parent_element)
+
                 else:
-                    try:
-                        left_child = self.children[element_idx]
-                        right_child = self.children[element_idx + 1]
-                    except IndexError:
-                        pass
-
-                    if left_child:
-                        nearest = left_child.mv_nearest_element()
-                        if nearest:
-                            print('pulling left nearest element')
-                            self.keys[element_idx] = nearest
-                            return
-
-                    if left_child and right_child:
-                        print('join childs')
-                        self.join_pages(
-                            element, element_idx, left_child, right_child)
-
+                    left_brother.keys.extend(self.keys)
+                    self.keys = left_brother
+                    self.parent.children.remove(left_brother)
+                    print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys}')
+                    # element_to_pop = self.parent.keys[my_idx]
+                    self.parent.n -= 1
+                    self.insertKey(self.parent.keys.pop(my_idx - 1))  # noqa: E501 MUDEI AGR
+                    if self.parent == root and self.parent.n == 0:
+                        root = self
+                        return
+                    self.parent.balance_page()
             else:
-                my_idx = parent.children.index(self)
                 try:
-                    left_brother = parent.children[my_idx - 1]
+                    right_brother = self.parent.children[my_idx + 1]
                 except IndexError:
-                    print('error')
                     pass
+                if right_brother and right_brother.n + self.n >= 2 * self.m:
+                    print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys}')
+                    parent_element = self.parent.keys.pop(my_idx)  # noqa: E501
+                    self.parent.n -= 1
+                    self.parent.insertKey(right_brother.keys.pop(0))  # noqa: E501
+                    self.insertKey(parent_element)
 
-                if left_brother and left_brother.n - 1 >= left_brother.m and left_brother.keys:   # noqa: E501
-                    print('pedindo emprestado para a page esquerda')
-                    ok = self.borrow(my_idx, parent, left_brother)
-                    if ok:
-                        parent.printPages()
-                        self.removes(parent, element)
-                        return True
-                try:
-                    right_brother = parent.children[my_idx + 1]
-                except IndexError:
-                    print('error')
-                    pass
+                else:
+                    self.keys.extend(right_brother.keys)
+                    self.parent.children.remove(right_brother)
+                    print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys}')
+                    self.parent.n -= 1
+                    self.insertKey(self.parent.keys.pop(my_idx))  # noqa: E501
+                    self.parent.balance_page()
 
-                if right_brother and right_brother.n - 1 >= right_brother.m and right_brother.keys:   # noqa: E501
-                    print('pedindo emprestado para a page direita')
-                    ok = self.borrow_right(my_idx, parent, right_brother)
-                    if ok:
-                        parent.printPages()
-                        self.removes(parent, element)
-                        return True
+    def removes(self, element):
+        global root
+        if self.leaf:
+            self.removesKey(element)
+            self.balance_page()
 
         else:
-            for child in self.children:
-                if child:
-                    child.removes(self, element)
+            # if self == root:
+            #     new_element = self.mv_nearest_element()
+            #     self.insertKey(new_element)
+            #     return
+            element_idx = self.keys.index(element)
+            left_child = self.children[element_idx]
+            self.removesKey(element)
+            new_element = left_child.mv_nearest_element()
+            self.insertKey(new_element)
 
-        self.n = len(self.keys)
+        # if self.n - 1 >= self.m or self.n < self.m or not self.parent:
+        #     if self.leaf:
+        #         print('deleting item in leaf')
+        #         del self.keys[element_idx]
+        #         self.n -= 1
+        #     else:
+        #         try:
+        #             left_child = self.children[element_idx]
+        #             right_child = self.children[element_idx + 1]
+        #         except IndexError:
+        #             pass
+
+        #         if left_child:
+        #             nearest = left_child.mv_nearest_element()
+        #             if nearest:
+        #                 print('pulling left nearest element')
+        #                 self.keys[element_idx] = nearest
+        #                 return
+
+        #         if left_child and right_child:
+        #             print('join childs')
+        #             self.join_pages(
+        #                 element, element_idx, left_child, right_child)
+
+        # else:
+        #     my_idx = parent.children.index(self)
+        #     try:
+        #         left_brother = parent.children[my_idx - 1]
+        #     except IndexError:
+        #         print('error')
+        #         pass
+
+        #     if left_brother and left_brother.n - 1 >= left_brother.m and left_brother.keys:   # noqa: E501
+        #         print('pedindo emprestado para a page esquerda')
+        #         ok = self.borrow(my_idx, parent, left_brother)
+        #         if ok:
+        #             parent.printPages()
+        #             self.removes(parent, element)
+        #             return True
+        #     try:
+        #         right_brother = parent.children[my_idx + 1]
+        #     except IndexError:
+        #         print('error')
+        #         pass
+
+        #     if right_brother and right_brother.n - 1 >= right_brother.m and right_brother.keys:   # noqa: E501
+        #         print('pedindo emprestado para a page direita')
+        #         ok = self.borrow_right(my_idx, parent, right_brother)
+        #         if ok:
+        #             parent.printPages()
+        #             self.removes(parent, element)
+        #             return True
+
+        # self.n = len(self.keys)
 
     def removesKey(self, x):
-        if self.n == 0:
-            self.keys.remove(x)
-        else:
-            pass
+        self.keys.remove(x)
+        self.n -= 1
 
 
 root = Page()
@@ -390,8 +431,12 @@ while menu != 3:
         for i in a:
             count += 1
             print(f'removes {i}')
-            root.removes(root, i)
+            page = root.search(i)
+            if page:
+                page.removes(i)
             root.printPages()
+            if count == 30:
+                break
 
         print('after:')
         root.printPages()
