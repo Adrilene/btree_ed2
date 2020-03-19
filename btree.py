@@ -230,7 +230,7 @@ class Page:
         if idx > self.n: 
             idx = self.n-1
 
-        if self.parent.children.index(brother) < idx or idx == self.parent.n:
+        elif self.parent.children.index(brother) < idx or idx == self.parent.n:
             idx-= 1
         
         print(f'INDICE R {idx}')
@@ -250,7 +250,7 @@ class Page:
         if idx > self.n: 
             idx = self.n-1
 
-        if self.parent.children.index(brother) < idx or idx == self.parent.n:
+        elif self.parent.children.index(brother) < idx or idx == self.parent.n:
             idx-= 1
         
         print(f'INDICE C {idx}')
@@ -263,11 +263,16 @@ class Page:
             brother.n += self.n
             brother.insertKey(parent_element)
             if not self.leaf:
-                brother.children = brother.children[:self.n+1]
-                for i in self.children:
-                    if i:
-                        brother.children.append(i)
-                for i in range(self.n+1, 2 * self.m):
+                new_children = brother.children
+                new_children.extend(self.children)
+                j = 0
+                for i in range(len(new_children)):
+                    if new_children[i]:
+                        new_children[i].parent = self
+                        brother.children[j] = new_children[i]
+                        j+=1
+                    
+                for i in range(brother.n, 2*brother.m+1):
                     brother.children.append(None)
 
             self = brother
@@ -281,19 +286,24 @@ class Page:
             self.insertKey(parent_element)
 
             if not brother.leaf:
-                self.children = self.children[:self.n+1]
-                for i in brother.children: 
-                    if i: 
-                        i.parent = self
-                        self.children.append(i)
-                for i in range(self.n+1, 2*self.m):
+                new_children = self.children
+                new_children.extend(brother.children)
+
+                j = 0
+                for i in range(len(new_children)):
+                    if new_children[i]:
+                        new_children[i].parent = self
+                        brother.children[j] = new_children[i]
+                        j+=1
+                    
+                for i in range(self.n, 2*self.m+1):
                     self.children.append(None)
             
         self.parent.children.remove(brother)
         del brother
         if len(self.parent.children) < self.n:
             self.parent.children.append(None)
-        self.parent.children[idx] = self
+        #self.parent.children[idx] = self
         
         if self.parent == root and root.n == 0:
             root = self
@@ -331,33 +341,33 @@ class Page:
                 # print(f'right brother.n {right_brother.n}')
             except (IndexError, AttributeError):
                 pass
-                
-            if my_idx != 0:
-
-                if left_brother and left_brother.n + self.n >= 2 * self.m:
-                    self.redistribute(left_brother)
-
-                elif right_brother and right_brother.n + self.n >= 2 * self.m:
-                    self.redistribute(right_brother)
-
-                else:
-                    if left_brother and left_brother.n + self.n < 2 * self.m:
-                        self.join_brothers(left_brother)
-                        self.parent.balance_page()
-
-                    elif right_brother and right_brother.n + self.n < self.m * 2:
-                        self.join_brothers(right_brother)
-                        self.parent.balance_page()
             
-            else:
-    
-                if right_brother and right_brother.n + self.n >= 2 * self.m:
-                    self.redistribute(right_brother)
+            if left_brother and left_brother.n + self.n >= 2 * self.m:
+                self.redistribute(left_brother)
 
-                if right_brother and right_brother.n + self.n < self.m * 2:
-                    self.join_brothers(right_brother)
+            elif right_brother and right_brother.n + self.n >= 2 * self.m:
+                self.redistribute(right_brother)
+
+            else:
+                if left_brother and left_brother.n + self.n < 2 * self.m:
+                    self.join_brothers(left_brother)
+            
+
+            if left_brother and left_brother.n + self.n >= 2 * self.m:
+                self.redistribute(left_brother)
+
+            elif right_brother and right_brother.n + self.n >= 2 * self.m:
+                self.redistribute(right_brother)
+
+            else:
+                if left_brother and left_brother.n + self.n < 2 * self.m:
+                    self.join_brothers(left_brother)
                     self.parent.balance_page()
 
+                elif right_brother and right_brother.n + self.n < self.m * 2:
+                    self.join_brothers(right_brother)
+                    self.parent.balance_page()
+            
         has_child = False
         
         for i in self.children:
@@ -448,8 +458,9 @@ while menu != 3:
         while len(a) > 0:
             page = root.search(x)
             if page: 
+                print(f'Removendo {x}')
                 page.removes(x)
                 count += 1
-            root.printPages()
+                root.printPages()
             x = a.pop(0)
         print(f'{count} removidos')
