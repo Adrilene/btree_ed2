@@ -21,7 +21,7 @@ class Page:
     def printPages(self):
         stack = []
         stack.append(self)  # Adiciona a página atual em stack
-
+        countK = 0
         while len(stack) > 0:
             count = len(stack)
             while count > 0:  # Percorre as páginas contidas em stack
@@ -32,7 +32,8 @@ class Page:
                 else:
                     temp = None
                 try:
-                    print(temp.keys, end='')
+                    print(temp.keys, temp.n, end='')
+                    countK += temp.n
                 except BaseException:
                     print('[    ]', end='')
 
@@ -46,6 +47,7 @@ class Page:
             print(' ')
 
         print('\n')
+        print(f'{countK} chaves')
 
     def search(self, x):
 
@@ -209,37 +211,49 @@ class Page:
     def mv_nearest_element(self):
         """
             Retorna o maior valor da subarvore esquerda
-        """
-        if not self.leaf: 
-            last_child = self.children[self.n]
-            if last_child: 
-                return last_child.mv_nearest_element()
-            last_child = self.children[self.n-1]
-            return last_child.mv_nearest_element()
+        """ 
+        print(f'Pesquisando filhos de: {self.keys}. {self.leaf}')
         
-        else: 
+        if self.leaf: 
             return self
+        
+        last_child = self.children[0]
+        for i in range(1, len(self.children) - 1):
+            if self.children[i+1]:
+                last_child = self.children[i+1]
+
+        return last_child.mv_nearest_element()
 
     def redistribute(self, brother):
         idx = self.parent.children.index(self)
+        
+        if idx > self.n: 
+            idx = self.n-1
 
-        if self.parent.children.index(brother) < idx:
+        if self.parent.children.index(brother) < idx or idx == self.parent.n:
             idx-= 1
         
+        print(f'INDICE R {idx}')
+
         parent_element = self.parent.keys.pop(idx)
         self.parent.n -= 1
         self.insertKey(parent_element)
         self.parent.insertKey(brother.keys.pop(-1))
         brother.n -= 1
-
+        
         print(f'Redistribuí. Pai: {self.parent.keys}. Irmão: {brother.keys}. Eu: {self.keys}')
 
     def join_brothers(self, brother): 
         global root 
 
         idx = self.parent.children.index(self)
-        if self.parent.children.index(brother) < idx:
-            idx -= 1
+        if idx > self.n: 
+            idx = self.n-1
+
+        if self.parent.children.index(brother) < idx or idx == self.parent.n:
+            idx-= 1
+        
+        print(f'INDICE C {idx}')
         
         parent_element = self.parent.keys.pop(idx)
         self.parent.n -= 1
@@ -257,6 +271,9 @@ class Page:
                     brother.children.append(None)
 
             self = brother
+            for i in self.children:
+                if i:
+                    i.parent = self
             
         else:
             self.keys.extend(brother.keys)
@@ -267,13 +284,17 @@ class Page:
                 self.children = self.children[:self.n+1]
                 for i in brother.children: 
                     if i: 
+                        i.parent = self
                         self.children.append(i)
                 for i in range(self.n+1, 2*self.m):
                     self.children.append(None)
             
         self.parent.children.remove(brother)
         del brother
-        self.parent.children.append(None)
+        if len(self.parent.children) < self.n:
+            self.parent.children.append(None)
+        self.parent.children[idx] = self
+        
         if self.parent == root and root.n == 0:
             root = self
 
@@ -285,6 +306,7 @@ class Page:
         """
         print(f'Balance function keys: {self.keys}, n: {self.n}')
         global root
+        
         try:
             my_idx = self.parent.children.index(self)
         except Exception:
@@ -292,7 +314,7 @@ class Page:
             return
         
         if self.n == 0: 
-            self.parent.children[my_idx] = None
+            self.parent.children.remove(self)
             del self
             return
 
@@ -309,7 +331,7 @@ class Page:
                 # print(f'right brother.n {right_brother.n}')
             except (IndexError, AttributeError):
                 pass
-
+                
             if my_idx != 0:
 
                 if left_brother and left_brother.n + self.n >= 2 * self.m:
@@ -334,6 +356,7 @@ class Page:
 
                 if right_brother and right_brother.n + self.n < self.m * 2:
                     self.join_brothers(right_brother)
+                    self.parent.balance_page()
 
         has_child = False
         
@@ -342,26 +365,34 @@ class Page:
                 has_child = True
 
         if not has_child:
+            print('Sou folha')
+            self.leaf = True
+        else:
             self.leaf = False
- 
+
     def removes(self, element):
         global root
-        
+
         if self.leaf:
+            print('remove folha')
             self.removesKey(element)
             self.balance_page()
 
         else:
+            print(f'filho do meio: {self.keys}. {self.children[0]} {self.leaf}')
             nearest_child = self.children[0].mv_nearest_element()
             nearest_element = nearest_child.keys[-1]
-            nearest_child.removesKey(nearest_element)
-            self.removesKey(element)
+            nearest_child.keys.remove(nearest_element)
+            nearest_child.n -= 1
+            self.keys.remove(element)
+            self.n -= 1
             self.insertKey(nearest_element)
+            print(f'elemento inserido: {nearest_element} em {self.keys}')
             nearest_child.balance_page()
 
         if self.n < self.m:
             self.balance_page()
-
+ 
 
     def removesKey(self, x):
         self.keys.remove(x)
@@ -410,16 +441,15 @@ while menu != 3:
                 #root.printPages()
                 print(c, ' elementos.')
         count = 0
-        root.printPages()
-        for i in a:
-            count += 1
-            page = root.search(i)
-            if page: 
-                print(f'removes {i}')
-                page.removes(i)
-                root.printPages()
-            a.remove(i)
-            if count == 50:
-                break
 
-        
+        root.printPages()
+        x = a.pop(0)
+        count = 0
+        while len(a) > 0:
+            page = root.search(x)
+            if page: 
+                page.removes(x)
+                count += 1
+            root.printPages()
+            x = a.pop(0)
+        print(f'{count} removidos')
