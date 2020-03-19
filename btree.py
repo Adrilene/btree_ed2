@@ -210,16 +210,74 @@ class Page:
         """
             Retorna o maior valor da subarvore esquerda
         """
-        nearest_element = (self.keys[-1], self)
-        # print(f'nearest_element keys{self.keys} children {self.children} n: {self.n}')
-        new_nearest_element = None
-        last_child = self.children[self.n]
-        if last_child:
-            new_nearest_element = last_child.mv_nearest_element()
-        if not new_nearest_element:
-            new_nearest_element = nearest_element
-            self.removesKey(new_nearest_element[0])
-        return new_nearest_element
+        if not self.leaf: 
+            last_child = self.children[self.n]
+            if last_child: 
+                return last_child.mv_nearest_element()
+            last_child = self.children[self.n-1]
+            return last_child.mv_nearest_element()
+        
+        else: 
+            return self
+
+    def redistribute(self, brother):
+        idx = self.parent.children.index(self)
+
+        if self.parent.children.index(brother) < idx:
+            idx-= 1
+        
+        parent_element = self.parent.keys.pop(idx)
+        self.parent.n -= 1
+        self.insertKey(parent_element)
+        self.parent.insertKey(brother.keys.pop(-1))
+        brother.n -= 1
+
+        print(f'Redistribuí. Pai: {self.parent.keys}. Irmão: {brother.keys}. Eu: {self.keys}')
+
+    def join_brothers(self, brother): 
+        global root 
+
+        idx = self.parent.children.index(self)
+        if self.parent.children.index(brother) < idx:
+            idx -= 1
+        
+        parent_element = self.parent.keys.pop(idx)
+        self.parent.n -= 1
+
+        if parent_element > brother.keys[0]:
+            brother.keys.extend(self.keys)
+            brother.n += self.n
+            brother.insertKey(parent_element)
+            if not self.leaf:
+                brother.children = brother.children[:self.n+1]
+                for i in self.children:
+                    if i:
+                        brother.children.append(i)
+                for i in range(self.n+1, 2 * self.m):
+                    brother.children.append(None)
+
+            self = brother
+            
+        else:
+            self.keys.extend(brother.keys)
+            self.n += brother.n
+            self.insertKey(parent_element)
+
+            if not brother.leaf:
+                self.children = self.children[:self.n+1]
+                for i in brother.children: 
+                    if i: 
+                        self.children.append(i)
+                for i in range(self.n+1, 2*self.m):
+                    self.children.append(None)
+            
+        self.parent.children.remove(brother)
+        del brother
+        self.parent.children.append(None)
+        if self.parent == root and root.n == 0:
+            root = self
+
+        print(f'Concatenei. Pai: {self.parent.keys}. Eu: {self.keys}')
 
     def balance_page(self):
         """
@@ -227,129 +285,87 @@ class Page:
         """
         print(f'Balance function keys: {self.keys}, n: {self.n}')
         global root
+        try:
+            my_idx = self.parent.children.index(self)
+        except Exception:
+            print('Nada feito')
+            return
+        
+        if self.n == 0: 
+            self.parent.children[my_idx] = None
+            del self
+            return
+
         if self.n < self.m and self != root:
+            
+            left_brother, right_brother = None, None
             try:
-                my_idx = self.parent.children.index(self)
-            except Exception:
-                return
+                left_brother = self.parent.children[my_idx - 1]
+                # print(f'left brother.n {left_brother.n}')
+            except (IndexError, AttributeError):
+                pass
+            try:
+                right_brother = self.parent.children[my_idx + 1]
+                # print(f'right brother.n {right_brother.n}')
+            except (IndexError, AttributeError):
+                pass
 
             if my_idx != 0:
-                left_brother, right_brother = None, None
-                try:
-                    left_brother = self.parent.children[my_idx - 1]
-                    # print(f'left brother.n {left_brother.n}')
-                except (IndexError, AttributeError):
-                    pass
-                try:
-                    right_brother = self.parent.children[my_idx + 1]
-                    # print(f'right brother.n {right_brother.n}')
-                except (IndexError, AttributeError):
-                    pass
 
                 if left_brother and left_brother.n + self.n >= 2 * self.m:
-                    # print('pedindo emprestado ao da esquerda')
-                    # print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys} parent.n {self.parent.n}')
-                    parent_element = self.parent.keys.pop(my_idx - 1)  # noqa: E501
-                    self.parent.n -= 1
-                    self.parent.insertKey(left_brother.keys.pop(-1))  # noqa: E501
-                    left_brother.n -= 1
-                    self.insertKey(parent_element)
+                    self.redistribute(left_brother)
+
                 elif right_brother and right_brother.n + self.n >= 2 * self.m:
-                    # print('pedindo emprestado ao da direita')
-                    # print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys}  parent.n {self.parent.n}')
-                    parent_element = self.parent.keys.pop(my_idx)  # noqa: E501
-                    self.parent.n -= 1
-                    self.parent.insertKey(right_brother.keys.pop(0))  # noqa: E501
-                    right_brother.n -= 1
-                    self.insertKey(parent_element)
-                else:
-                    print('se juntando com o da esquerda')
-                    print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys}')
-                    self.parent.n -= 1
-                    self.insertKey(self.parent.keys.pop(my_idx - 1))  # noqa
-                    new_elements_length = left_brother.n
-                    print(f'children {self.children} left_children {left_brother.children}')
-                    left_brother.keys.extend(self.keys)
-                    self.keys = left_brother.keys
-                    print(f'after join n:{self.n} elements:{self.keys} parent.n: {self.parent.n} parentkeys: {self.parent.keys}')
-                    try:
-                        for left_child in range(left_brother.n, -1, -1):
-                            if left_brother.children[left_child]:
-                                print(left_child)
-                                self.children.pop(-1)
-                                self.children.insert(0, left_brother.children[left_child])
-                        self.n += new_elements_length
-                        while len(self.children) <= 2 * self.m + 1:
-                            self.children.append(None)
-                    except ValueError:
-                        pass
-                    print(f'after join children {self.children} mykeys: {self.keys}')
+                    self.redistribute(right_brother)
 
-                    # if self.parent == root and self.parent.n == 0:
-                    #     root = self
-                    #     return
-                    self.parent.children.remove(left_brother)
-                    self.parent.balance_page()
+                else:
+                    if left_brother and left_brother.n + self.n < 2 * self.m:
+                        self.join_brothers(left_brother)
+                        self.parent.balance_page()
+
+                    elif right_brother and right_brother.n + self.n < self.m * 2:
+                        self.join_brothers(right_brother)
+                        self.parent.balance_page()
+            
             else:
-                try:
-                    right_brother = self.parent.children[my_idx + 1]
-                except IndexError:
-                    pass
+    
                 if right_brother and right_brother.n + self.n >= 2 * self.m:
-                    # print('pedindo emprestado ao da direita')
-                    # print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys} parent.n {self.parent.n}')
-                    parent_element = self.parent.keys.pop(my_idx)  # noqa: E501
-                    self.parent.n -= 1
-                    self.parent.insertKey(right_brother.keys.pop(0))  # noqa: E501
-                    right_brother.n -= 1
-                    self.insertKey(parent_element)
+                    self.redistribute(right_brother)
 
-                else:
-                    print('se juntando ao da direita')
-                    print(f'my_idx {my_idx} and self.parent.keys: {self.parent.keys} parent.n: {self.parent.n}')
-                    print(f'children {self.children} right_children {right_brother.children}')
-                    self.parent.n -= 1
-                    self.insertKey(self.parent.keys.pop(my_idx))  # noqa: E501
-                    new_elements_length = right_brother.n
-                    self.keys.extend(right_brother.keys)
-                    print(f'after join n:{self.n} elements:{self.keys} parent.n: {self.parent.n} parentkeys: {self.parent.keys} right.n: {right_brother.n}')
-                    try:
-                        print(f'entrou right n {right_brother.n} right brotherchildren {right_brother.children}')
-                        for right_child in range(right_brother.n + 1):
-                            if right_brother.children[right_child]:
-                                print(right_brother.children[right_child])
-                                self.children.pop(-1)
-                                self.children.insert(self.n, right_brother.children[right_child])
-                        self.n += new_elements_length
+                if right_brother and right_brother.n + self.n < self.m * 2:
+                    self.join_brothers(right_brother)
 
-                        while len(self.children) <= 2 * self.m + 1:
-                            self.children.append(None)
-                    except ValueError:
-                        pass
-                    print(f'after join children {self.children} mykeys: {self.keys}')
-                    self.parent.children.remove(right_brother)
-                    self.parent.balance_page()
+        has_child = False
+        
+        for i in self.children:
+            if i:
+                has_child = True
 
+        if not has_child:
+            self.leaf = False
+ 
     def removes(self, element):
         global root
+        
         if self.leaf:
             self.removesKey(element)
             self.balance_page()
 
         else:
-            element_idx = self.keys.index(element)
-            left_child = self.children[element_idx]
+            nearest_child = self.children[0].mv_nearest_element()
+            nearest_element = nearest_child.keys[-1]
+            nearest_child.removesKey(nearest_element)
             self.removesKey(element)
-            # print(f'in nearest element {self.children} element_idx {element_idx}')
-            new_element = left_child.mv_nearest_element()
-            self.insertKey(new_element[0])
-            root.printPages()
-            new_element[1].balance_page()
+            self.insertKey(nearest_element)
+            nearest_child.balance_page()
+
+        if self.n < self.m:
+            self.balance_page()
+
 
     def removesKey(self, x):
         self.keys.remove(x)
         self.n -= 1
-
 
 root = Page()
 c = 0
@@ -391,18 +407,19 @@ while menu != 3:
                 print('Inserindo ', x)
                 if root.insertion(x):
                     c += 1
-                root.printPages()
+                #root.printPages()
                 print(c, ' elementos.')
         count = 0
+        root.printPages()
         for i in a:
             count += 1
-            print(f'removes {i}')
             page = root.search(i)
-            if page:
+            if page: 
+                print(f'removes {i}')
                 page.removes(i)
-            root.printPages()
-            if count == 30:
+                root.printPages()
+            a.remove(i)
+            if count == 50:
                 break
 
-        print('after:')
-        root.printPages()
+        
