@@ -32,7 +32,7 @@ class Page:
                 else:
                     temp = None
                 try:
-                    print(temp.keys, temp.n, end='')
+                    print(temp.keys, end='')
                     countK += temp.n
                 except BaseException:
                     print('[    ]', end='')
@@ -212,7 +212,6 @@ class Page:
         """
             Retorna o maior valor da subarvore esquerda
         """ 
-        print(f'Pesquisando filhos de: {self.keys}. {self.leaf}')
         
         if self.leaf: 
             return self
@@ -226,42 +225,38 @@ class Page:
 
     def redistribute(self, brother):
         idx = self.parent.children.index(self)
-        
-        if idx > self.n: 
-            idx = self.n-1
 
-        elif self.parent.children.index(brother) < idx or idx == self.parent.n:
-            idx-= 1
+        if self.parent.children.index(brother) < idx:
+            if idx >= self.parent.n:
+                idx=self.parent.n-1
+            else:
+                idx-= 1
         
-        print(f'INDICE R {idx}')
-
         parent_element = self.parent.keys.pop(idx)
         self.parent.n -= 1
         self.insertKey(parent_element)
         self.parent.insertKey(brother.keys.pop(-1))
         brother.n -= 1
-        
-        print(f'Redistribuí. Pai: {self.parent.keys}. Irmão: {brother.keys}. Eu: {self.keys}')
 
     def join_brothers(self, brother): 
         global root 
 
         idx = self.parent.children.index(self)
-        if idx > self.n: 
-            idx = self.n-1
 
-        elif self.parent.children.index(brother) < idx or idx == self.parent.n:
-            idx-= 1
-        
-        print(f'INDICE C {idx}')
-        
-        parent_element = self.parent.keys.pop(idx)
-        self.parent.n -= 1
-
-        if parent_element > brother.keys[0]:
+        if self.parent.children.index(brother) < idx:
+            if idx >= self.parent.n:
+                idx=self.parent.n-1
+            else:
+                idx-= 1
+            
+            parent_element = self.parent.keys.pop(idx)
+            self.parent.n -= 1
             brother.keys.extend(self.keys)
-            brother.n += self.n
+            brother.n = len(brother.keys)
             brother.insertKey(parent_element)
+            self.parent.insertKey(brother.keys.pop(-1))    
+            brother.n -= 1
+            
             if not self.leaf:
                 new_children = brother.children
                 new_children.extend(self.children)
@@ -275,15 +270,23 @@ class Page:
                 for i in range(brother.n, 2*brother.m+1):
                     brother.children.append(None)
 
-            self = brother
-            for i in self.children:
-                if i:
-                    i.parent = self
-            
+                for i in self.children:
+                    if i:
+                        i.parent = self
+
+            self.keys = brother.keys
+            self.children = brother.children
+            self.n = brother.n
+
         else:
+            
+            parent_element = self.parent.keys.pop(idx)
+            self.parent.n -= 1
             self.keys.extend(brother.keys)
-            self.n += brother.n
+            self.n = len(self.keys)
             self.insertKey(parent_element)
+            self.parent.insertKey(brother.keys.pop(-1))
+            brother.n -= 1
 
             if not brother.leaf:
                 new_children = self.children
@@ -299,6 +302,10 @@ class Page:
                 for i in range(self.n, 2*self.m+1):
                     self.children.append(None)
             
+                for i in self.children:
+                    if i:
+                        i.parent = self
+            
         self.parent.children.remove(brother)
         del brother
         if len(self.parent.children) < self.n:
@@ -308,13 +315,10 @@ class Page:
         if self.parent == root and root.n == 0:
             root = self
 
-        print(f'Concatenei. Pai: {self.parent.keys}. Eu: {self.keys}')
-
     def balance_page(self):
         """
             Balanceia a pagina, se tiver inferior ao valor a m
         """
-        print(f'Balance function keys: {self.keys}, n: {self.n}')
         global root
         
         try:
@@ -329,16 +333,13 @@ class Page:
             return
 
         if self.n < self.m and self != root:
-            
             left_brother, right_brother = None, None
             try:
                 left_brother = self.parent.children[my_idx - 1]
-                # print(f'left brother.n {left_brother.n}')
             except (IndexError, AttributeError):
                 pass
             try:
                 right_brother = self.parent.children[my_idx + 1]
-                # print(f'right brother.n {right_brother.n}')
             except (IndexError, AttributeError):
                 pass
             
@@ -348,25 +349,14 @@ class Page:
             elif right_brother and right_brother.n + self.n >= 2 * self.m:
                 self.redistribute(right_brother)
 
-            else:
-                if left_brother and left_brother.n + self.n < 2 * self.m:
-                    self.join_brothers(left_brother)
+            elif left_brother and left_brother.n + self.n < 2 * self.m:
+                self.join_brothers(left_brother)
+                self.parent.balance_page()
+
+            elif right_brother and right_brother.n + self.n < self.m * 2:
+                self.join_brothers(right_brother)
+                self.parent.balance_page()
             
-
-            if left_brother and left_brother.n + self.n >= 2 * self.m:
-                self.redistribute(left_brother)
-
-            elif right_brother and right_brother.n + self.n >= 2 * self.m:
-                self.redistribute(right_brother)
-
-            else:
-                if left_brother and left_brother.n + self.n < 2 * self.m:
-                    self.join_brothers(left_brother)
-                    self.parent.balance_page()
-
-                elif right_brother and right_brother.n + self.n < self.m * 2:
-                    self.join_brothers(right_brother)
-                    self.parent.balance_page()
             
         has_child = False
         
@@ -379,7 +369,7 @@ class Page:
             self.leaf = True
         else:
             self.leaf = False
-
+    
     def removes(self, element):
         global root
 
@@ -390,7 +380,8 @@ class Page:
 
         else:
             print(f'filho do meio: {self.keys}. {self.children[0]} {self.leaf}')
-            nearest_child = self.children[0].mv_nearest_element()
+            idx_r = self.keys.index(element)
+            nearest_child = self.children[idx_r].mv_nearest_element()
             nearest_element = nearest_child.keys[-1]
             nearest_child.keys.remove(nearest_element)
             nearest_child.n -= 1
