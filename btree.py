@@ -1,4 +1,8 @@
 import random
+from PyQt5.QtWidgets import QApplication
+from btree_interface import Window, execute_interface
+import os
+import sys
 
 root = None
 
@@ -399,12 +403,58 @@ class Page:
         self.keys.remove(x)
         self.n -= 1
 
+    def get_pages_and_parents(self):
+        stack = []
+        stack.append(self) #Adiciona a página atual em stack
+        pages = set()
+        i = 0
+        while len(stack) > 0:
+            count = len(stack)
+            while count > 0: #Percorre as páginas contidas em stack
+                if stack[0]: 
+                    temp = stack.pop(0) #temp recebe a primeira página de stack, e a remove de stack
+                    pages.add(temp)
+                    
+                else: 
+                    temp = None
+                if temp: 
+                    for i in range(len(temp.children)): #Percorre as páginas filhas de temp, e as adiciona em stack.
+                        if temp.children[i]:
+                            stack.append(temp.children[i])
+                count -= 1
+
+        pages_to_interface = []
+        first_execute = True
+        while True:
+            if len(pages_to_interface) == len(pages):
+                break
+            for page in pages:
+                if not page.parent and first_execute:
+                    pages_to_interface.append(['root', page.keys, 0])
+                    first_execute = False
+                for keys in pages_to_interface:        
+                    if page.parent != None:
+                        complete_page = [keys[1], page.keys, keys[2]+1]
+                        if page.parent.keys == keys[1] and complete_page not in pages_to_interface:
+                            pages_to_interface.append(complete_page)
+        
+        return pages_to_interface
+
 root = Page()
 c = 0
 menu = 0
+if os.path.exists("data_to_interface.txt"):
+    os.remove("data_to_interface.txt")
+interface_file = open('data_to_interface.txt', 'a')
+
 while menu != 3:
-    menu = int(input(
-        "Digite 1 para o método interativo, 2 para o método automático, e 3 para sair."))
+    print('=== B Tree ===')
+    print('Digite uma das opções:')
+    print('(1) para o método interativo')
+    print('(2) para o método automático')
+    print('(3) para sair')
+    menu = int(input())
+
     if menu == 1:
         resposta = 0
         while(resposta != 99):
@@ -430,7 +480,7 @@ while menu != 3:
                     count += 1
     if menu == 2:
         a = []
-        while c < 50:
+        while c < 40:
             random.seed()
             x = random.randint(0, 50)
             a.append(x)
@@ -439,11 +489,19 @@ while menu != 3:
                 print('Inserindo ', x)
                 if root.insertion(x):
                     c += 1
-                #root.printPages()
+                root.printPages()
                 print(c, ' elementos.')
+                if c == 40:
+                    pages_parents = root.get_pages_and_parents()
+                    interface_file.writelines(str(root.m) + ';')
+                    for page in pages_parents:
+                        interface_file.writelines(str(page) + ';')
+                    interface_file.close()
+                    execute_interface()
+        
         count = 0
 
-        root.printPages()
+        '''root.printPages()
         x = a.pop(0)
         count = 0
         while len(a) > 0:
@@ -454,4 +512,4 @@ while menu != 3:
                 count += 1
                 root.printPages()
             x = a.pop(0)
-        print(f'{count} removidos')
+        print(f'{count} removidos')'''
